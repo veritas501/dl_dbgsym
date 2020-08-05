@@ -20,16 +20,14 @@ def set_libc_env(filename):
 			return 's390x'
 		else:
 			print(f'[\033[1;31m×\033[0m] unsupported arch')
-			clean()
 			exit(1)
 
 	def get_ver(filename):
-		data = popen(f'strings "{filename}" | grep "Ubuntu GLIBC"').read()
+		data = popen(f'strings "{filename}" | grep "GNU C Library"').read()
 		try:
-			ver = re.search(r'\(Ubuntu GLIBC (.*?)\)', data).group(1)
+			ver = re.search(r'GLIBC (.*?)\)', data).group(1)
 		except:
-			print(f'[\033[1;31m×\033[0m] can\'t find glibc version')
-			clean()
+			print(f'[\033[1;31m×\033[0m] can\'t find ubuntu glibc version')
 			exit(1)
 		return ver
 
@@ -39,7 +37,6 @@ def set_libc_env(filename):
 			buildid = re.search(r'Build ID: (\w+)',data).group(1)
 		except:
 			print(f'[\033[1;31m×\033[0m] can\'t find glibc buildid')
-			clean()
 			exit(1)
 		return buildid
 
@@ -50,7 +47,6 @@ def set_libc_env(filename):
 			dist = re.search(r'<a href="/ubuntu/(\w+)">', r.text).group(1)
 		except:
 			print(f'[\033[1;31m×\033[0m] can\'t find ubuntu dist')
-			clean()
 			exit(1)
 		return dist
 
@@ -61,7 +57,16 @@ def set_libc_env(filename):
 			dl_url = re.search(r'<a class="sprite" href="(.*?)">', r.text).group(1)
 		except:
 			print(f'[\033[1;31m×\033[0m] can\'t find libc-dbg download url')
-			clean()
+			exit(1)
+		return dl_url
+
+	def find_libc_dbgsym_url_i386_amd64(dist,arch,ver):
+		url = f'https://launchpad.net/ubuntu/{dist}/amd64/libc6-i386-dbgsym/{ver}'
+		r = requests.get(url)
+		try:
+			dl_url = re.search(r'<a class="sprite" href="(.*?)">', r.text).group(1)
+		except:
+			print(f'[\033[1;31m×\033[0m] can\'t find libc-dbg download url')
 			exit(1)
 		return dl_url
 
@@ -72,7 +77,16 @@ def set_libc_env(filename):
 			dl_url = re.search(r'<a class="sprite" href="(.*?)">', r.text).group(1)
 		except:
 			print(f'[\033[1;31m×\033[0m] can\'t find libc download url')
-			clean()
+			exit(1)
+		return dl_url
+
+	def find_libc_bin_url_i386_amd64(dist,arch,ver):
+		url = f'https://launchpad.net/ubuntu/{dist}/amd64/libc6-i386/{ver}'
+		r = requests.get(url)
+		try:
+			dl_url = re.search(r'<a class="sprite" href="(.*?)">', r.text).group(1)
+		except:
+			print(f'[\033[1;31m×\033[0m] can\'t find libc download url')
 			exit(1)
 		return dl_url
 
@@ -85,13 +99,8 @@ def set_libc_env(filename):
 		recheck_buildid = get_buildid(target_name)
 		if recheck_buildid != buildid:
 			print(f'[\033[1;31m×\033[0m] move dbgsym fail')
-			clean()
 			exit(1)
 		print(f'[\033[1;32m√\033[0m] move dbgsym done!!')
-
-	def clean():
-		print(f'[\033[1;36m*\033[0m] cleaning...')
-		system(f'cd ..;rm -rf "{version}_tmp"')
 
 	arch = get_arch(filename)
 	print(f'[\033[1;36m*\033[0m] find libc arch: \033[4m{arch}\033[0m')
@@ -105,6 +114,7 @@ def set_libc_env(filename):
 	system(f'mkdir -p "{version}_tmp"')
 	chdir(f'{version}_tmp')
 	# set dbgsym
+	amd64_ver_i386 = False
 	libc_dbg_url = find_libc_dbg_url(dist,arch,version)
 	print(f'[\033[1;36m*\033[0m] find libc-dbg url: \033[4m{libc_dbg_url}\033[0m')
 	system(f'wget {libc_dbg_url} -O libc6-dbg.deb')
@@ -115,12 +125,29 @@ def set_libc_env(filename):
 	dbg_buildid = get_buildid(dbgsym_filename)
 	if dbg_buildid != buildid:
 		print(f'[\033[1;31m×\033[0m] dbgsym buildid not match: \033[4m{dbg_buildid}\033[0m')
-		clean()
-		exit(1)
+		if arch != 'i386':
+			exit(1)
+		else:
+			print(f'[\033[1;36m*\033[0m] try to fetch amd64 build version of libc6-i386-dbgsym')
+		libc_dbgsym_url = find_libc_dbgsym_url_i386_amd64(dist,arch,version)
+		print(f'[\033[1;36m*\033[0m] find libc6-i386-dbgsym url: \033[4m{libc_dbgsym_url}\033[0m')
+		system(f'wget {libc_dbgsym_url} -O libc6-i386-dbgsym.ddeb')
+		system(f'ar -x libc6-i386-dbgsym.ddeb data.tar.xz')
+		system(f'mkdir -p libc6-i386-dbgsym')
+		system(f'tar -xf data.tar.xz -C ./libc6-i386-dbgsym')
+		dbgsym_filename = popen(f'find libc6-i386-dbgsym -name "{buildid[2:]}.debug" -type f').read().strip()
+		dbg_buildid = get_buildid(dbgsym_filename)
+		if dbg_buildid != buildid:
+			print(f'[\033[1;31m×\033[0m] dbgsym buildid not match: \033[4m{dbg_buildid}\033[0m')
+			exit(1)
+		amd64_ver_i386=True
 	print(f'[\033[1;32m√\033[0m] find dbgsym!!')
 	move_dbgysm(dbgsym_filename,dbg_buildid)
 	# download ld.so
-	libc_bin_url = find_libc_bin_url(dist,arch,version)
+	if amd64_ver_i386:
+		libc_bin_url = find_libc_bin_url_i386_amd64(dist,arch,version)
+	else:
+		libc_bin_url = find_libc_bin_url(dist,arch,version)
 	print(f'[\033[1;36m*\033[0m] find libc-bin url: \033[4m{libc_bin_url}\033[0m')
 	system(f'wget {libc_bin_url} -O libc6.deb')
 	system(f'ar -x libc6.deb data.tar.xz')
@@ -129,7 +156,6 @@ def set_libc_env(filename):
 	ld_filename = popen(f'find libc6 -name "ld-*.so" -type f').read().strip()
 	print(f'[\033[1;32m√\033[0m] find ld.so!!')
 	system(f'cp "{ld_filename}" ../')
-	# clean
 	print(f'[\033[1;36m*\033[0m] cleaning...')
 	system(f'cd ..;rm -rf "{version}_tmp"')
 
