@@ -20,6 +20,7 @@ def set_libc_env(filename):
 			return 's390x'
 		else:
 			print(f'[\033[1;31m×\033[0m] unsupported arch')
+			clean()
 			exit(1)
 
 	def get_ver(filename):
@@ -28,6 +29,7 @@ def set_libc_env(filename):
 			ver = re.search(r'GLIBC (.*?)\)', data).group(1)
 		except:
 			print(f'[\033[1;31m×\033[0m] can\'t find ubuntu glibc version')
+			clean()
 			exit(1)
 		return ver
 
@@ -37,6 +39,7 @@ def set_libc_env(filename):
 			buildid = re.search(r'Build ID: (\w+)',data).group(1)
 		except:
 			print(f'[\033[1;31m×\033[0m] can\'t find glibc buildid')
+			clean()
 			exit(1)
 		return buildid
 
@@ -47,6 +50,7 @@ def set_libc_env(filename):
 			dist = re.search(r'<a href="/ubuntu/(\w+)">', r.text).group(1)
 		except:
 			print(f'[\033[1;31m×\033[0m] can\'t find ubuntu dist')
+			clean()
 			exit(1)
 		return dist
 
@@ -57,6 +61,7 @@ def set_libc_env(filename):
 			dl_url = re.search(r'<a class="sprite" href="(.*?)">', r.text).group(1)
 		except:
 			print(f'[\033[1;31m×\033[0m] can\'t find libc-dbg download url')
+			clean()
 			exit(1)
 		return dl_url
 
@@ -67,6 +72,7 @@ def set_libc_env(filename):
 			dl_url = re.search(r'<a class="sprite" href="(.*?)">', r.text).group(1)
 		except:
 			print(f'[\033[1;31m×\033[0m] can\'t find libc-dbg download url')
+			clean()
 			exit(1)
 		return dl_url
 
@@ -77,6 +83,7 @@ def set_libc_env(filename):
 			dl_url = re.search(r'<a class="sprite" href="(.*?)">', r.text).group(1)
 		except:
 			print(f'[\033[1;31m×\033[0m] can\'t find libc download url')
+			clean()
 			exit(1)
 		return dl_url
 
@@ -87,6 +94,7 @@ def set_libc_env(filename):
 			dl_url = re.search(r'<a class="sprite" href="(.*?)">', r.text).group(1)
 		except:
 			print(f'[\033[1;31m×\033[0m] can\'t find libc download url')
+			clean()
 			exit(1)
 		return dl_url
 
@@ -99,8 +107,13 @@ def set_libc_env(filename):
 		recheck_buildid = get_buildid(target_name)
 		if recheck_buildid != buildid:
 			print(f'[\033[1;31m×\033[0m] move dbgsym fail')
+			clean()
 			exit(1)
 		print(f'[\033[1;32m√\033[0m] move dbgsym done!!')
+
+	def clean():
+		print(f'[\033[1;36m*\033[0m] cleaning...')
+		system(f'cd ..;rm -rf "{version}_tmp"')
 
 	arch = get_arch(filename)
 	print(f'[\033[1;36m*\033[0m] find libc arch: \033[4m{arch}\033[0m')
@@ -126,6 +139,7 @@ def set_libc_env(filename):
 	if dbg_buildid != buildid:
 		print(f'[\033[1;31m×\033[0m] dbgsym buildid not match: \033[4m{dbg_buildid}\033[0m')
 		if arch != 'i386':
+			clean()
 			exit(1)
 		else:
 			print(f'[\033[1;36m*\033[0m] try to fetch amd64 build version of libc6-i386-dbgsym')
@@ -139,6 +153,7 @@ def set_libc_env(filename):
 		dbg_buildid = get_buildid(dbgsym_filename)
 		if dbg_buildid != buildid:
 			print(f'[\033[1;31m×\033[0m] dbgsym buildid not match: \033[4m{dbg_buildid}\033[0m')
+			clean()
 			exit(1)
 		amd64_ver_i386=True
 	print(f'[\033[1;32m√\033[0m] find dbgsym!!')
@@ -156,8 +171,7 @@ def set_libc_env(filename):
 	ld_filename = popen(f'find libc6 -name "ld-*.so" -type f').read().strip()
 	print(f'[\033[1;32m√\033[0m] find ld.so!!')
 	system(f'cp "{ld_filename}" ../')
-	print(f'[\033[1;36m*\033[0m] cleaning...')
-	system(f'cd ..;rm -rf "{version}_tmp"')
+	clean()
 
 if __name__ == "__main__":
 	if len(sys.argv) == 1:
