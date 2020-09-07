@@ -6,7 +6,7 @@ import sys
 
 log_info = lambda s: print(f'[\033[1;36m*\033[0m] {s}')
 log_success = lambda s: print(f'[\033[1;32m√\033[0m] {s}')
-log_fail = lambda s: log_success(f'[\033[1;31m×\033[0m] {s}')
+log_fail = lambda s: print(f'[\033[1;31m×\033[0m] {s}')
 underline = lambda s: f'\033[4m{s}\033[0m'
 
 def set_libc_env(filename):
