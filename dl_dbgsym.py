@@ -140,7 +140,7 @@ def set_libc_env(filename):
 	system(f'ar -x libc6-dbg.deb data.tar.xz')
 	system(f'mkdir -p libc6-dbg')
 	system(f'tar -xf data.tar.xz -C ./libc6-dbg')
-	dbgsym_filename = popen(f'find libc6-dbg -name "libc-*.so" -type f | grep -v prof').read().strip()
+	dbgsym_filename = popen(f'find libc6-dbg -name "libc-*.so" -or -name "{buildid[2:]}.debug" -type f | grep -v prof').read().strip()
 	dbg_buildid = get_buildid(dbgsym_filename)
 	if dbg_buildid != buildid:
 		log_fail(f'dbgsym buildid not match: {underline(dbg_buildid)}')
