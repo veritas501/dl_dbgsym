@@ -409,6 +409,11 @@ class LibcEnv:
             .strip()
         )
         libc_filepaths = [x.strip("\r\n\t ") for x in find_result.splitlines()]
+        libc_filepaths = [
+            libc_filepath
+            for libc_filepath in libc_filepaths
+            if self.get_build_id(libc_filepath) == self.get_build_id(self.libc_filepath)
+        ]
         if len(libc_filepaths) > 1:
             raise Exception(
                 "multi target libc.so result found in deb: {}".format(libc_filepaths)
